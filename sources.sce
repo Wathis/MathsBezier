@@ -1,0 +1,209 @@
+function points=saisirPoints()
+    a=gca();
+    a.data_bounds=[0 0;100 100];
+    plot2d(0,0)
+    i=1
+    typeButton = 3
+    x=[]
+    y=[]
+    while typeButton == 3
+        [typeButton,tX,tY]=xclick()
+        if typeButton == 3 
+            x(i) = tX
+            y(i) = tY
+            //disp(x(i),y(i))
+            plot(x(i),y(i),'black.')
+            if i >= 2
+                plot([x(i-1);x(i)],[y(i-1);y(i)],"black")
+            end
+            i = i + 1      
+        end
+    end
+    points=[x';y']
+endfunction
+
+function doAnimation()
+    colordef("white")
+    scf()
+    recommence = 1
+    while recommence == 1
+       points=saisirPoints()
+       castaljauAnimation(points,100) 
+       [typeButton,xt,yt]=xclick();
+       if typeButton == 4 
+         recommence = 0
+       end  
+       points=[]
+       clf()
+    end
+endfunction
+
+function doBerstein()
+    colordef("white")
+    scf()
+    points=saisirPoints()
+    berstein(points,100,1,"b") 
+endfunction
+
+function doCastaljau()
+    colordef("white")
+    scf()
+    points=saisirPoints()
+    castaljau(points,100,1,"b") 
+endfunction
+
+function doComparaisonSimple()
+    colordef("white")
+    scf()
+    points=saisirPoints()
+    tic()
+    castaljau(points,100,0,"r") 
+    cpu_time = toc()
+    messagebox("Castaljau pour " + string(size(points)(2)) + " points : " + string(cpu_time) + " secondes")
+    tic()
+    berstein(points,100,0,"b") 
+    cpu_time = toc()
+    messagebox("Berstein pour " + string(size(points)(2)) + " points : " + string(cpu_time) + " secondes")
+endfunction
+
+function doComparaisonGraphe(maxi)
+    colordef("white")
+    scf()
+    cpu_berstein=[]
+    cpu_castaljau=[]
+    for i=2:maxi
+        x=[]
+        y=[]
+        for j=1:i
+            x(j)=rand()
+            y(j)=rand()
+        end
+        points=[x';y']
+        tic()
+        castaljau(points,100,0)
+        cpu_castaljau(i - 1)=toc()
+        tic()
+        berstein(points,100,0)
+        cpu_berstein(i - 1 )=toc()
+        disp(string(floor((i / maxi)*100)) + " % terminés")
+    end
+    x=[2:maxi]
+    plot(x,cpu_berstein','b')
+    plot(x,cpu_castaljau','r')
+    hl=legend(['berstein';'castaljau']);
+    xclick()
+    drawlater()
+    clf()
+    pointsBerstein = [x;cpu_berstein']
+    pointsCastaljau = [x;cpu_castaljau']
+    berstein(pointsBerstein,100,1,"b")
+    castaljau(pointsCastaljau,100,1,"r")
+    drawnow()
+    h2=legend(['berstein';'castaljau']);
+endfunction
+
+function x = binomialCoeficient(k,n)
+    x = factorial (n)  / ((factorial(k) * factorial(n - k)))
+endfunction
+
+function pol =  polynomeBerstein(m,i,u)
+    pol = binomialCoeficient(i,m) * (u.^i) * (1 - u).^(m-i)
+endfunction
+
+function berstein(points,n,dessiner,couleur)
+    x=[]
+    y=[]
+    taille=size(points)
+    for i = 1:n
+        tmp=[0;0]
+        for j = 1:taille(2)
+            tmp = tmp + polynomeBerstein(taille(2)-1, j-1,i/n) * points(:,j)
+        end
+        tmp = tmp'
+        x(i) = tmp(1)
+        y(i) = tmp(2)
+    end
+    if dessiner == 1 then
+        plot(x,y,couleur)
+    end
+endfunction
+
+function afficherPointsSegments(points)
+    taille=size(points)
+    x=points(1,:)
+    y=points(2,:)
+    for i =2:taille(2)
+        plot([x(i-1);x(i)],[y(i-1);y(i)],"black") 
+    end
+endfunction
+
+function castaljau(points,n,dessiner,couleur)
+    x=[]
+    y=[]
+    for i = 1:n
+        tmp = methodeRecursive(points,i / n)
+        x(i)= tmp(1,1)
+        y(i)=tmp(2,1)
+        //if dessiner == 1 then
+            //plot(x(i),y(i),'+')
+        //end 
+    end
+    if dessiner == 1 then
+        plot(x,y,couleur)
+    end
+endfunction
+
+function castaljauAnimation(points,n)
+    x=[]
+    y=[]
+    for i = 1:n
+        drawlater()
+        clf()
+        a=gca()
+        a.data_bounds=[0 0;100 100]
+        afficherPointsSegments(points)
+        tmp = methodeRecursiveAnim(points,i / n)
+        x(i)= tmp(1,1)
+        y(i)=tmp(2,1)
+        plot(x(i),y(i),'r.')
+        plot(x,y,"red")
+        e = gce();
+        //e.children.line_style = 1;
+        e.children.thickness = 2;
+        drawnow()
+    end
+endfunction
+
+function pointFinal = methodeRecursive(points,t)
+    xt=[]
+    yt=[]
+    taille=size(points)
+    if taille(2) == 1 then
+        pointFinal = points
+    else 
+        for i=2:taille(2)
+           xt(i-1)= (points(1,i) - points( 1, i - 1 ) ) * t + points( 1, i - 1 )
+           yt(i-1)= (points(2,i) - points( 2, i - 1 ) ) * t + points( 2, i - 1 ) 
+        end
+        pointsT=[xt';yt']
+        pointFinal = methodeRecursive(pointsT,t) 
+    end
+endfunction
+
+function pointFinal = methodeRecursiveAnim(points,t)
+    xt=[]
+    yt=[]
+    couleurs=["blue","green","magenta"]
+    taille=size(points)
+    if taille(2) == 1 then
+        pointFinal = points
+    else 
+        for i=2:taille(2)
+           xt(i-1)= (points(1,i) - points( 1, i - 1 ) ) * t + points( 1, i - 1 )
+           yt(i-1)= (points(2,i) - points( 2, i - 1 ) ) * t + points( 2, i - 1 ) 
+        end
+        pointsT=[xt';yt']
+        plot(xt,yt,couleurs(modulo(taille(2),3)+1))
+        pointFinal = methodeRecursiveAnim(pointsT,t) 
+    end
+endfunction
